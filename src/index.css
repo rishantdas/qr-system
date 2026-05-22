@@ -1,0 +1,67 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color: #e2e8f0;
+    background-color: #020617;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    @apply border-slate-800;
+  }
+
+  body {
+    @apply min-h-screen bg-slate-950 text-slate-100;
+    background-image:
+      radial-gradient(circle at top left, rgba(245, 140, 22, 0.2), transparent 35%),
+      radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 28%),
+      linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer utilities {
+  .surface-panel {
+    @apply rounded-3xl border border-white/10 bg-slate-900/70 shadow-soft backdrop-blur;
+  }
+
+  .surface-muted {
+    @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur;
+  }
+
+  .menu-canvas {
+    background-color: #1b1d23;
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1.4px),
+      linear-gradient(180deg, #1a1d24 0%, #1c1f27 100%);
+    background-position: 0 0, 0 0;
+    background-size: 16px 16px, auto;
+  }
+
+  .scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+}
