@@ -5,6 +5,7 @@ import { Button } from "../components/Button";
 const OrderSuccessPage = () => {
   const { orderId } = useParams();
   const { state } = useLocation();
+  const orderReference = state?.restaurantOrderCode ?? orderId?.slice(0, 8);
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -19,7 +20,7 @@ const OrderSuccessPage = () => {
           Your order is in the kitchen.
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          Order <span className="font-semibold text-white">#{orderId?.slice(0, 8)}</span>{" "}
+          Order <span className="font-semibold text-white">#{orderReference}</span>{" "}
           has been sent successfully for Table{" "}
           <span className="font-semibold text-white">
             {state?.tableNumber ?? "your table"}

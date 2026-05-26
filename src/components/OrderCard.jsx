@@ -1,11 +1,27 @@
-import { Clock3, UtensilsCrossed } from "lucide-react";
+import { Clock3, PencilLine, Trash2, UtensilsCrossed } from "lucide-react";
 import { ORDER_STATUSES } from "../lib/constants";
 import { formatCurrency } from "../utils/currency";
 import { formatDateTime } from "../utils/date";
 import { Button } from "./Button";
 import { StatusBadge } from "./StatusBadge";
 
-export const OrderCard = ({ order, onStatusChange, updating }) => (
+export const OrderCard = ({
+  order,
+  onStatusChange,
+  updating,
+  onShowBill,
+  onCloseBill,
+  billUpdating,
+  onEditOrder,
+  onDeleteOrder,
+  deleting,
+}) => {
+  const orderReference = order.restaurant_order_code ?? order.id.slice(0, 8);
+  const isBillLiveForTable =
+    order.restaurant_tables?.current_view === "bill"
+    && order.restaurant_tables?.active_order_id === order.id;
+
+  return (
   <article className="surface-panel p-5">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -22,7 +38,7 @@ export const OrderCard = ({ order, onStatusChange, updating }) => (
           </span>
           <span className="inline-flex items-center gap-2">
             <UtensilsCrossed className="h-4 w-4" />
-            Order #{order.id.slice(0, 8)}
+            Order #{orderReference}
           </span>
         </div>
       </div>
@@ -60,12 +76,51 @@ export const OrderCard = ({ order, onStatusChange, updating }) => (
         <Button
           key={status}
           variant={order.status === status ? "primary" : "secondary"}
-          disabled={order.status === status || updating}
+          disabled={order.status === status || updating || deleting}
           onClick={() => onStatusChange(order.id, status)}
         >
           Mark {status}
         </Button>
       ))}
+      <Button
+        variant={isBillLiveForTable ? "secondary" : "primary"}
+        disabled={billUpdating || deleting}
+        onClick={() => onShowBill(order)}
+      >
+        {billUpdating
+          ? "Updating bill..."
+          : isBillLiveForTable
+            ? "Bill live on QR"
+            : "Show bill on QR"}
+      </Button>
+      {isBillLiveForTable ? (
+        <Button
+          variant="ghost"
+          disabled={billUpdating || deleting}
+          onClick={() => onCloseBill(order)}
+        >
+          Close bill
+        </Button>
+      ) : null}
+      <Button
+        variant="ghost"
+        className="gap-2"
+        disabled={deleting}
+        onClick={() => onEditOrder(order)}
+      >
+        <PencilLine className="h-4 w-4" />
+        Edit order
+      </Button>
+      <Button
+        variant="danger"
+        className="gap-2"
+        disabled={deleting || updating || billUpdating}
+        onClick={() => onDeleteOrder(order)}
+      >
+        <Trash2 className="h-4 w-4" />
+        {deleting ? "Deleting..." : "Delete order"}
+      </Button>
     </div>
   </article>
-);
+  );
+};

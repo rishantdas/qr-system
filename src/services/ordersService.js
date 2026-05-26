@@ -3,14 +3,21 @@ import { buildOrderPayload } from "../utils/order";
 
 const ORDER_SELECT = `
   id,
+  restaurant_order_code,
   table_id,
+  restaurant_id,
   status,
   total_amount,
+  bill_ready,
+  bill_paid,
+  bill_generated_at,
   created_at,
-  restaurant_tables!inner (
+  restaurant_tables:restaurant_tables!orders_table_id_fkey (
     id,
     table_number,
-    restaurant_id
+    restaurant_id,
+    current_view,
+    active_order_id
   ),
   order_items (
     id,
@@ -26,38 +33,23 @@ const ORDER_SELECT = `
 `;
 
 export const ordersService = {
-  async createOrder({ tableId, items }) {
+  async createOrder({ tableId, items, clientRequestId }) {
     const supabase = assertSupabase();
     const orderPayload = buildOrderPayload({ tableId, items });
 
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        table_id: orderPayload.table_id,
-        status: orderPayload.status,
-        total_amount: orderPayload.total_amount,
+    const { data, error } = await supabase
+      .rpc("create_public_order", {
+        p_table_id: orderPayload.table_id,
+        p_items: orderPayload.order_items,
+        p_client_request_id: clientRequestId,
       })
-      .select("id")
       .single();
 
-    if (orderError) {
-      throw orderError;
+    if (error) {
+      throw error;
     }
 
-    const { error: itemsError } = await supabase.from("order_items").insert(
-      orderPayload.order_items.map((item) => ({
-        order_id: order.id,
-        menu_item_id: item.menu_item_id,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    );
-
-    if (itemsError) {
-      throw itemsError;
-    }
-
-    return order;
+    return data;
   },
 
   async getOrdersByRestaurant(
@@ -92,11 +84,117 @@ export const ordersService = {
     return data ?? [];
   },
 
+  async showBillOnTable({ orderId, tableId }) {
+    const supabase = assertSupabase();
+
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({
+        bill_ready: true,
+        bill_paid: false,
+        bill_generated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (orderError) {
+      throw orderError;
+    }
+
+    const { error: tableError } = await supabase
+      .from("restaurant_tables")
+      .update({
+        current_view: "bill",
+        active_order_id: orderId,
+      })
+      .eq("id", tableId);
+
+    if (tableError) {
+      throw tableError;
+    }
+  },
+
+  async closeBillOnTable({ orderId, tableId }) {
+    const supabase = assertSupabase();
+
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({
+        bill_paid: true,
+      })
+      .eq("id", orderId);
+
+    if (orderError) {
+      throw orderError;
+    }
+
+    const { error: tableError } = await supabase
+      .from("restaurant_tables")
+      .update({
+        current_view: "menu",
+        active_order_id: null,
+      })
+      .eq("id", tableId);
+
+    if (tableError) {
+      throw tableError;
+    }
+  },
+
   async updateStatus(orderId, status) {
     const supabase = assertSupabase();
     const { error } = await supabase
       .from("orders")
       .update({ status })
+      .eq("id", orderId);
+
+    if (error) {
+      throw error;
+    }
+  },
+
+  async removeOrderItem({ orderId, orderItemId, totalAmount }) {
+    const supabase = assertSupabase();
+
+    const { error: itemError } = await supabase
+      .from("order_items")
+      .delete()
+      .eq("id", orderItemId)
+      .eq("order_id", orderId);
+
+    if (itemError) {
+      throw itemError;
+    }
+
+    const { error: orderError } = await supabase
+      .from("orders")
+      .update({ total_amount: totalAmount })
+      .eq("id", orderId);
+
+    if (orderError) {
+      throw orderError;
+    }
+  },
+
+  async deleteOrder({ orderId, tableId, resetTableBill }) {
+    const supabase = assertSupabase();
+
+    if (resetTableBill) {
+      const { error: tableError } = await supabase
+        .from("restaurant_tables")
+        .update({
+          current_view: "menu",
+          active_order_id: null,
+        })
+        .eq("id", tableId);
+
+      if (tableError) {
+        throw tableError;
+      }
+    }
+
+    const { error } = await supabase
+      .from("orders")
+      .delete()
       .eq("id", orderId);
 
     if (error) {

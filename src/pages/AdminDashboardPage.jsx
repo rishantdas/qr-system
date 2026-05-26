@@ -11,12 +11,17 @@ import { DEFAULT_ORDER_FILTER } from "../lib/constants";
 import { useRealtimeOrders } from "../hooks/useRealtimeOrders";
 import { ordersService } from "../services/ordersService";
 import { restaurantService } from "../services/restaurantService";
+import { formatCurrency } from "../utils/currency";
 import { formatDateInputValue } from "../utils/date";
 import { generateTableQrCode } from "../utils/qr";
 
 const AdminDashboardPage = () => {
   const [statusFilter, setStatusFilter] = useState(DEFAULT_ORDER_FILTER);
   const [updatingOrderId, setUpdatingOrderId] = useState("");
+  const [billActionOrderId, setBillActionOrderId] = useState("");
+  const [deletingOrderId, setDeletingOrderId] = useState("");
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [removingItemId, setRemovingItemId] = useState("");
   const [qrPreview, setQrPreview] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -86,6 +91,119 @@ const AdminDashboardPage = () => {
       toast.error(
         generationError.message || "Unable to generate QR code for that table.",
       );
+    }
+  };
+
+  const handleShowBill = async (order) => {
+    try {
+      setBillActionOrderId(order.id);
+      await ordersService.showBillOnTable({
+        orderId: order.id,
+        tableId: order.table_id,
+      });
+      toast.success("Bill is now live on the table QR.");
+      await refreshOrders();
+    } catch (billError) {
+      toast.error(billError.message || "Unable to show the bill on the table QR.");
+    } finally {
+      setBillActionOrderId("");
+    }
+  };
+
+  const handleCloseBill = async (order) => {
+    try {
+      setBillActionOrderId(order.id);
+      await ordersService.closeBillOnTable({
+        orderId: order.id,
+        tableId: order.table_id,
+      });
+      toast.success("Bill closed. The table QR is back on the menu.");
+      await refreshOrders();
+    } catch (billError) {
+      toast.error(billError.message || "Unable to close the bill.");
+    } finally {
+      setBillActionOrderId("");
+    }
+  };
+
+  const handleOpenEditOrder = (order) => {
+    setEditingOrder(order);
+  };
+
+  const handleCloseEditOrder = () => {
+    if (removingItemId) {
+      return;
+    }
+
+    setEditingOrder(null);
+  };
+
+  const handleRemoveOrderItem = async (order, orderItemId) => {
+    const nextItems = order.order_items?.filter((item) => item.id !== orderItemId) ?? [];
+
+    if (!nextItems.length) {
+      toast.error("This is the last item. Use delete order instead.");
+      return;
+    }
+
+    const nextTotalAmount = nextItems.reduce(
+      (sum, item) => sum + item.quantity * item.price,
+      0,
+    );
+
+    try {
+      setRemovingItemId(orderItemId);
+      await ordersService.removeOrderItem({
+        orderId: order.id,
+        orderItemId,
+        totalAmount: nextTotalAmount,
+      });
+      toast.success("Order item removed.");
+      await refreshOrders();
+      setEditingOrder((current) => (
+        current?.id === order.id
+          ? {
+            ...current,
+            total_amount: nextTotalAmount,
+            order_items: nextItems,
+          }
+          : current
+      ));
+    } catch (removeError) {
+      toast.error(removeError.message || "Unable to remove the order item.");
+    } finally {
+      setRemovingItemId("");
+    }
+  };
+
+  const handleDeleteOrder = async (order) => {
+    const orderReference = order.restaurant_order_code ?? order.id.slice(0, 8);
+    const confirmed = window.confirm(
+      `Delete order #${orderReference} for table ${order.restaurant_tables?.table_number ?? "N/A"}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingOrderId(order.id);
+      await ordersService.deleteOrder({
+        orderId: order.id,
+        tableId: order.table_id,
+        resetTableBill:
+          order.restaurant_tables?.current_view === "bill"
+          && order.restaurant_tables?.active_order_id === order.id,
+      });
+      if (editingOrder?.id === order.id) {
+        setEditingOrder(null);
+      }
+      toast.success("Order deleted.");
+      await refreshOrders();
+    } catch (deleteError) {
+      toast.error(deleteError.message || "Unable to delete the order.");
+    } finally {
+      setDeletingOrderId("");
     }
   };
 
@@ -235,7 +353,13 @@ const AdminDashboardPage = () => {
                 key={order.id}
                 order={order}
                 updating={updatingOrderId === order.id}
+                billUpdating={billActionOrderId === order.id}
+                deleting={deletingOrderId === order.id}
                 onStatusChange={handleStatusChange}
+                onShowBill={handleShowBill}
+                onCloseBill={handleCloseBill}
+                onEditOrder={handleOpenEditOrder}
+                onDeleteOrder={handleDeleteOrder}
               />
             ))}
           </div>
@@ -250,6 +374,106 @@ const AdminDashboardPage = () => {
           />
         )}
       </section>
+
+      {editingOrder ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
+          <div className="surface-panel w-full max-w-2xl p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-300">
+                  Order editor
+                </p>
+                <h3 className="mt-3 text-2xl font-extrabold text-white">
+                  Edit order #{editingOrder.restaurant_order_code ?? editingOrder.id.slice(0, 8)}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-300">
+                  Remove items from this order before the kitchen continues.
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                className="px-3 py-2 text-xs"
+                onClick={handleCloseEditOrder}
+                disabled={Boolean(removingItemId)}
+              >
+                Close
+              </Button>
+            </div>
+
+            <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-slate-400">Table</p>
+                  <p className="mt-1 text-lg font-semibold text-white">
+                    {editingOrder.restaurant_tables?.table_number ?? "N/A"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-slate-400">Updated total</p>
+                  <p className="mt-1 text-2xl font-black text-white">
+                    {formatCurrency(editingOrder.total_amount)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                {editingOrder.order_items?.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-medium text-white">
+                        {item.quantity}x {item.menu_items?.name ?? "Menu item"}
+                      </p>
+                      <p className="text-sm text-slate-400">
+                        {item.menu_items?.category ?? "Uncategorized"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-white">
+                        {formatCurrency(item.quantity * item.price)}
+                      </span>
+                      <Button
+                        variant="danger"
+                        className="px-3 py-2 text-xs"
+                        disabled={removingItemId === item.id}
+                        onClick={() => handleRemoveOrderItem(editingOrder, item.id)}
+                      >
+                        {removingItemId === item.id ? "Removing..." : "Remove item"}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {editingOrder.order_items?.length === 1 ? (
+                <p className="mt-4 text-sm text-amber-300">
+                  The last remaining item cannot be removed here. Use delete order if
+                  this full order should be cancelled.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button
+                variant="ghost"
+                onClick={handleCloseEditOrder}
+                disabled={Boolean(removingItemId)}
+              >
+                Done
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => handleDeleteOrder(editingOrder)}
+                disabled={Boolean(removingItemId) || deletingOrderId === editingOrder.id}
+              >
+                {deletingOrderId === editingOrder.id ? "Deleting..." : "Delete order"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

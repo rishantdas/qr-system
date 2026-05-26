@@ -2,6 +2,7 @@ import { Search, UtensilsCrossed } from "lucide-react";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
+import { Button } from "../components/Button";
 import { CategoryFilter } from "../components/CategoryFilter";
 import { CartSheet } from "../components/CartSheet";
 import { EmptyState } from "../components/EmptyState";
@@ -14,15 +15,186 @@ import { SheetModal } from "../components/SheetModal";
 import { useMenu } from "../hooks/useMenu";
 import { ordersService } from "../services/ordersService";
 import { useCartStore } from "../store/cartStore";
+import { formatCurrency } from "../utils/currency";
+import { formatDateTime } from "../utils/date";
+
+const downloadBillPng = ({ order, table }) => {
+  const orderReference = order.restaurant_order_code ?? order.id.slice(0, 8);
+  const items = order.order_items ?? [];
+  const width = 1200;
+  const height = Math.max(920, 330 + items.length * 110);
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    throw new Error("Unable to create the bill image.");
+  }
+
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  context.scale(scale, scale);
+
+  const left = 72;
+  const right = width - 72;
+  let y = 92;
+
+  const drawText = (text, x, currentY, options = {}) => {
+    const {
+      align = "left",
+      color = "#111827",
+      font = "500 28px Arial",
+    } = options;
+
+    context.fillStyle = color;
+    context.font = font;
+    context.textAlign = align;
+    context.fillText(text, x, currentY);
+  };
+
+  context.fillStyle = "#f8fafc";
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(28, 28, width - 56, height - 56);
+
+  context.fillStyle = "#111827";
+  context.font = "700 46px Arial";
+  context.textAlign = "left";
+  context.fillText("Restaurant Bill", left, y);
+
+  y += 52;
+  drawText(
+    `Table ${String(table?.table_number ?? "").padStart(2, "0")}`,
+    left,
+    y,
+    { font: "600 24px Arial", color: "#475569" },
+  );
+
+  y += 38;
+  drawText(
+    `Order #${orderReference} • ${formatDateTime(order.created_at)}`,
+    left,
+    y,
+    { font: "500 22px Arial", color: "#64748b" },
+  );
+
+  y += 58;
+  context.strokeStyle = "#cbd5e1";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(left, y);
+  context.lineTo(right, y);
+  context.stroke();
+
+  y += 44;
+  drawText("Item", left, y, { font: "700 22px Arial" });
+  drawText("Qty", width - 350, y, { font: "700 22px Arial", align: "center" });
+  drawText("Price", width - 220, y, { font: "700 22px Arial", align: "right" });
+  drawText("Total", right, y, { font: "700 22px Arial", align: "right" });
+
+  y += 22;
+  context.strokeStyle = "#e2e8f0";
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(left, y);
+  context.lineTo(right, y);
+  context.stroke();
+
+  items.forEach((item) => {
+    y += 44;
+
+    drawText(item.menu_items?.name ?? "Menu item", left, y, {
+      font: "600 24px Arial",
+    });
+    drawText(String(item.quantity), width - 350, y, {
+      font: "500 22px Arial",
+      align: "center",
+      color: "#334155",
+    });
+    drawText(formatCurrency(item.price), width - 220, y, {
+      font: "500 22px Arial",
+      align: "right",
+      color: "#334155",
+    });
+    drawText(formatCurrency(item.quantity * item.price), right, y, {
+      font: "600 22px Arial",
+      align: "right",
+    });
+
+    y += 34;
+    drawText(item.menu_items?.category ?? "Uncategorized", left, y, {
+      font: "500 18px Arial",
+      color: "#64748b",
+    });
+
+    y += 28;
+    context.beginPath();
+    context.moveTo(left, y);
+    context.lineTo(right, y);
+    context.stroke();
+  });
+
+  y += 60;
+  drawText("Subtotal", width - 240, y, {
+    font: "500 24px Arial",
+    align: "right",
+    color: "#475569",
+  });
+  drawText(formatCurrency(order.total_amount), right, y, {
+    font: "600 24px Arial",
+    align: "right",
+  });
+
+  y += 42;
+  drawText("Taxes & Service", width - 240, y, {
+    font: "500 24px Arial",
+    align: "right",
+    color: "#475569",
+  });
+  drawText(formatCurrency(0), right, y, {
+    font: "600 24px Arial",
+    align: "right",
+  });
+
+  y += 58;
+  context.strokeStyle = "#cbd5e1";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(width - 360, y - 26);
+  context.lineTo(right, y - 26);
+  context.stroke();
+
+  drawText("Order Total", width - 240, y, {
+    font: "700 32px Arial",
+    align: "right",
+  });
+  drawText(formatCurrency(order.total_amount), right, y, {
+    font: "700 32px Arial",
+    align: "right",
+  });
+
+  const url = canvas.toDataURL("image/png");
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `bill-table-${String(table?.table_number ?? "00").padStart(2, "0")}-order-${orderReference}.png`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
 
 const MenuPage = () => {
   const navigate = useNavigate();
   const { tableId } = useParams();
-  const { table, menuItems, loading, error } = useMenu(tableId);
+  const { table, menuItems, billOrder, currentView, loading, error } = useMenu(tableId);
   const [placingOrder, setPlacingOrder] = useState(false);
+  const [pendingRequestId, setPendingRequestId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const items = useCartStore((state) => state.items);
   const addItem = useCartStore((state) => state.addItem);
@@ -68,27 +240,45 @@ const MenuPage = () => {
       return;
     }
 
+    const requestId = pendingRequestId || crypto.randomUUID();
+
     try {
       setPlacingOrder(true);
+      setPendingRequestId(requestId);
       const order = await ordersService.createOrder({
         tableId: table.id,
         items,
+        clientRequestId: requestId,
       });
 
       clearCart();
+      setPendingRequestId("");
       toast.success("Order placed successfully.");
       navigate(`/order-success/${order.id}`, {
         state: {
+          restaurantOrderCode: order.restaurant_order_code,
           tableNumber: table.table_number,
           tableId: table.id,
         },
       });
     } catch (err) {
-      toast.error(err.message || "Unable to place order.");
+      const message = err instanceof TypeError && err.message === "Load failed"
+        ? "Network issue while sending the order. Retry once; duplicate protection is enabled."
+        : (err.message || "Unable to place order.");
+      toast.error(message);
     } finally {
       setPlacingOrder(false);
       setIsCartOpen(false);
+      setIsConfirmOpen(false);
     }
+  };
+
+  const handleOpenConfirmation = () => {
+    if (!items.length || !table?.id) {
+      return;
+    }
+
+    setIsConfirmOpen(true);
   };
 
   if (loading) {
@@ -103,6 +293,92 @@ const MenuPage = () => {
     return (
       <div className="mx-auto flex min-h-screen max-w-2xl items-center px-4">
         <ErrorState message={error} />
+      </div>
+    );
+  }
+
+  if (currentView === "bill" && billOrder) {
+    return (
+      <div className="menu-canvas min-h-screen px-4 py-8">
+        <div className="mx-auto max-w-3xl">
+          <div className="surface-panel p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-300">
+              Bill ready
+            </p>
+            <h1 className="mt-3 text-3xl font-extrabold text-white">
+              Table {String(table?.table_number ?? "").padStart(2, "0")} bill
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              This QR is currently showing the latest bill prepared by the restaurant
+              team for this table.
+            </p>
+
+            <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-slate-400">Order</p>
+                  <p className="mt-1 text-lg font-semibold text-white">
+                    #{billOrder.restaurant_order_code ?? billOrder.id.slice(0, 8)}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {formatDateTime(billOrder.created_at)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-slate-400">Order total</p>
+                  <p className="mt-1 text-2xl font-black text-white">
+                    {formatCurrency(billOrder.total_amount)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 space-y-3">
+                {billOrder.order_items?.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-medium text-white">
+                        {item.quantity}x {item.menu_items?.name ?? "Menu item"}
+                      </p>
+                      <p className="text-sm text-slate-400">
+                        {item.menu_items?.category ?? "Uncategorized"}
+                      </p>
+                    </div>
+                    <span className="font-semibold text-white">
+                      {formatCurrency(item.quantity * item.price)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 space-y-3 border-t border-white/10 pt-4 text-slate-300">
+                <div className="flex items-center justify-between">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(billOrder.total_amount)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Taxes & Service</span>
+                  <span>{formatCurrency(0)}</span>
+                </div>
+                <div className="flex items-center justify-between text-2xl font-black text-white">
+                  <span>Total payable</span>
+                  <span>{formatCurrency(billOrder.total_amount)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => downloadBillPng({ order: billOrder, table })}
+              >
+                Download bill
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -201,7 +477,7 @@ const MenuPage = () => {
                 onAdd={addItem}
                 onDecrement={decrementItem}
                 onRemove={removeItem}
-                onPlaceOrder={handlePlaceOrder}
+                onPlaceOrder={handleOpenConfirmation}
                 placingOrder={placingOrder}
               />
             ) : (
@@ -237,11 +513,65 @@ const MenuPage = () => {
               onAdd={addItem}
               onDecrement={decrementItem}
               onRemove={removeItem}
-              onPlaceOrder={handlePlaceOrder}
+              onPlaceOrder={handleOpenConfirmation}
               placingOrder={placingOrder}
             />
           </SheetModal>
         </>
+      ) : null}
+
+      {isConfirmOpen ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#050b18]/78 px-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#0d1627] p-6 shadow-[0_24px_50px_rgba(0,0,0,0.35)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">
+              Confirm order
+            </p>
+            <h3 className="mt-3 text-2xl font-extrabold text-white">
+              Place this order now?
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              You are about to place {totalItems} item{totalItems === 1 ? "" : "s"} for
+              {" "}Table {String(table?.table_number ?? "").padStart(2, "0")}.
+            </p>
+
+            <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center justify-between text-sm text-slate-300">
+                <span>Items</span>
+                <span>{totalItems}</span>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-sm text-slate-300">
+                <span>Table</span>
+                <span>{String(table?.table_number ?? "").padStart(2, "0")}</span>
+              </div>
+              <div className="mt-4 flex items-center justify-between text-xl font-black text-white">
+                <span>Total</span>
+                <span>{totalAmount.toLocaleString("en-IN", {
+                  style: "currency",
+                  currency: "INR",
+                  maximumFractionDigits: 2,
+                })}</span>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => setIsConfirmOpen(false)}
+                disabled={placingOrder}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handlePlaceOrder}
+                disabled={placingOrder}
+              >
+                {placingOrder ? "Placing..." : "Confirm"}
+              </Button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
