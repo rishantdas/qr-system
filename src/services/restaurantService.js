@@ -14,8 +14,28 @@ export const restaurantService = {
 
     const { data, error } = await supabase
       .from("restaurant_admins")
-      .select("restaurant_id, restaurants(id, name)")
+      .select("restaurant_id, restaurants(id, name, google_review_url)")
       .eq("user_id", user.id)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  },
+
+  async updateAdminRestaurant({ restaurantId, googleReviewUrl }) {
+    const supabase = assertSupabase();
+    const normalizedUrl = googleReviewUrl.trim();
+
+    const { data, error } = await supabase
+      .from("restaurants")
+      .update({
+        google_review_url: normalizedUrl || null,
+      })
+      .eq("id", restaurantId)
+      .select("id, name, google_review_url")
       .single();
 
     if (error) {

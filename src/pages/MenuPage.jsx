@@ -17,6 +17,7 @@ import { ordersService } from "../services/ordersService";
 import { useCartStore } from "../store/cartStore";
 import { formatCurrency } from "../utils/currency";
 import { formatDateTime } from "../utils/date";
+import { normalizeExternalUrl } from "../utils/url";
 
 const downloadBillPng = ({ order, table }) => {
   const orderReference = order.restaurant_order_code ?? order.id.slice(0, 8);
@@ -259,6 +260,8 @@ const MenuPage = () => {
           restaurantOrderCode: order.restaurant_order_code,
           tableNumber: table.table_number,
           tableId: table.id,
+          restaurantName: table.restaurants?.name ?? "",
+          googleReviewUrl: table.restaurants?.google_review_url ?? "",
         },
       });
     } catch (err) {
@@ -279,6 +282,22 @@ const MenuPage = () => {
     }
 
     setIsConfirmOpen(true);
+  };
+
+  const handleLeaveReview = () => {
+    try {
+      const reviewUrl = normalizeExternalUrl(
+        table?.restaurants?.google_review_url ?? "",
+      );
+
+      if (!reviewUrl) {
+        return;
+      }
+
+      window.open(reviewUrl, "_blank", "noopener,noreferrer");
+    } catch (reviewError) {
+      toast.error(reviewError.message || "Unable to open the review page.");
+    }
   };
 
   if (loading) {
@@ -376,6 +395,15 @@ const MenuPage = () => {
               >
                 Download bill
               </Button>
+              {table?.restaurants?.google_review_url ? (
+                <Button
+                  className="w-full sm:w-auto"
+                  variant="secondary"
+                  onClick={handleLeaveReview}
+                >
+                  Leave a Google review
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

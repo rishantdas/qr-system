@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { restaurantService } from "../services/restaurantService";
 
 export const useAdminRestaurant = () => {
@@ -6,44 +6,31 @@ export const useAdminRestaurant = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let mounted = true;
-
-    const loadRestaurant = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const data = await restaurantService.getAdminRestaurant();
-
-        if (!mounted) {
-          return;
-        }
-
-        setRestaurant(data?.restaurants ?? null);
-      } catch (loadError) {
-        if (mounted) {
-          setError(
-            loadError.message ||
-              "Unable to determine which restaurant this admin belongs to.",
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadRestaurant();
-
-    return () => {
-      mounted = false;
-    };
+  const loadRestaurant = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await restaurantService.getAdminRestaurant();
+      setRestaurant(data?.restaurants ?? null);
+    } catch (loadError) {
+      setError(
+        loadError.message ||
+          "Unable to determine which restaurant this admin belongs to.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadRestaurant();
+  }, [loadRestaurant]);
 
   return {
     restaurant,
     loading,
     error,
+    setRestaurant,
+    refreshRestaurant: loadRestaurant,
   };
 };

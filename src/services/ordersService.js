@@ -37,13 +37,30 @@ export const ordersService = {
     const supabase = assertSupabase();
     const orderPayload = buildOrderPayload({ tableId, items });
 
-    const { data, error } = await supabase
-      .rpc("create_public_order", {
-        p_table_id: orderPayload.table_id,
-        p_items: orderPayload.order_items,
-        p_client_request_id: clientRequestId,
-      })
+    const createOrderParams = {
+      p_table_id: orderPayload.table_id,
+      p_items: orderPayload.order_items,
+      p_client_request_id: clientRequestId,
+    };
+
+    let { data, error } = await supabase
+      .rpc("create_public_order", createOrderParams)
       .single();
+
+    const missingIdempotencyRpc =
+      error?.code === "PGRST202" &&
+      error.message?.includes(
+        "public.create_public_order(p_client_request_id, p_items, p_table_id)",
+      );
+
+    if (missingIdempotencyRpc) {
+      ({ data, error } = await supabase
+        .rpc("create_public_order", {
+          p_table_id: orderPayload.table_id,
+          p_items: orderPayload.order_items,
+        })
+        .single());
+    }
 
     if (error) {
       throw error;

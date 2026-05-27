@@ -1,5 +1,5 @@
 import { Activity, CircleCheckBig, CookingPot, LoaderCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Button } from "../components/Button";
 import { EmptyState } from "../components/EmptyState";
@@ -14,6 +14,7 @@ import { restaurantService } from "../services/restaurantService";
 import { formatCurrency } from "../utils/currency";
 import { formatDateInputValue } from "../utils/date";
 import { generateTableQrCode } from "../utils/qr";
+import { normalizeExternalUrl } from "../utils/url";
 
 const AdminDashboardPage = () => {
   const [statusFilter, setStatusFilter] = useState(DEFAULT_ORDER_FILTER);
@@ -25,10 +26,13 @@ const AdminDashboardPage = () => {
   const [qrPreview, setQrPreview] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [googleReviewUrl, setGoogleReviewUrl] = useState("");
+  const [savingReviewUrl, setSavingReviewUrl] = useState(false);
   const {
     restaurant,
     loading: restaurantLoading,
     error: restaurantError,
+    setRestaurant,
   } = useAdminRestaurant();
   const defaultStartDate = useMemo(() => {
     const start = new Date();
@@ -39,6 +43,10 @@ const AdminDashboardPage = () => {
   const defaultEndDate = useMemo(() => formatDateInputValue(new Date()), []);
   const effectiveStartDate = startDate || defaultStartDate;
   const effectiveEndDate = endDate || defaultEndDate;
+
+  useEffect(() => {
+    setGoogleReviewUrl(restaurant?.google_review_url ?? "");
+  }, [restaurant?.google_review_url]);
 
   const { orders, loading, error, refreshOrders } = useRealtimeOrders({
     restaurantId: restaurant?.id,
@@ -128,6 +136,36 @@ const AdminDashboardPage = () => {
 
   const handleOpenEditOrder = (order) => {
     setEditingOrder(order);
+  };
+
+  const handleSaveGoogleReviewUrl = async (event) => {
+    event.preventDefault();
+
+    if (!restaurant?.id) {
+      return;
+    }
+
+    try {
+      setSavingReviewUrl(true);
+      const normalizedUrl = googleReviewUrl
+        ? normalizeExternalUrl(googleReviewUrl)
+        : "";
+      const updatedRestaurant = await restaurantService.updateAdminRestaurant({
+        restaurantId: restaurant.id,
+        googleReviewUrl: normalizedUrl,
+      });
+      setRestaurant(updatedRestaurant);
+      setGoogleReviewUrl(updatedRestaurant.google_review_url ?? "");
+      toast.success(
+        normalizedUrl
+          ? "Google review link saved."
+          : "Google review link removed.",
+      );
+    } catch (saveError) {
+      toast.error(saveError.message || "Unable to save the Google review link.");
+    } finally {
+      setSavingReviewUrl(false);
+    }
   };
 
   const handleCloseEditOrder = () => {
@@ -294,6 +332,46 @@ const AdminDashboardPage = () => {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="surface-panel p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-brand-300">
+          Growth tools
+        </p>
+        <h3 className="mt-3 text-2xl font-extrabold text-white">
+          Google review link
+        </h3>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+          Add your Google Maps or Google review URL. Guests will see a review
+          button after ordering and while viewing the table bill.
+        </p>
+
+        <form
+          className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]"
+          onSubmit={handleSaveGoogleReviewUrl}
+        >
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium text-slate-300">
+              Google review URL
+            </span>
+            <input
+              type="url"
+              value={googleReviewUrl}
+              onChange={(event) => setGoogleReviewUrl(event.target.value)}
+              placeholder="https://g.page/r/your-review-link/review"
+              className="surface-muted w-full px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+          </label>
+          <div className="flex items-end">
+            <Button
+              className="w-full lg:w-auto"
+              type="submit"
+              disabled={savingReviewUrl}
+            >
+              {savingReviewUrl ? "Saving..." : "Save review link"}
+            </Button>
+          </div>
+        </form>
       </section>
 
       <section className="flex flex-wrap items-center gap-3">

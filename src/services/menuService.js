@@ -5,7 +5,18 @@ export const menuService = {
     const supabase = assertSupabase();
     const { data, error } = await supabase
       .from("restaurant_tables")
-      .select("id, table_number, restaurant_id, current_view, active_order_id")
+      .select(`
+        id,
+        table_number,
+        restaurant_id,
+        current_view,
+        active_order_id,
+        restaurants (
+          id,
+          name,
+          google_review_url
+        )
+      `)
       .eq("id", tableId)
       .single();
 
