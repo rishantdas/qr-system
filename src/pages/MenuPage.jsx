@@ -188,8 +188,11 @@ const downloadBillPng = ({ order, table }) => {
 
 const MenuPage = () => {
   const navigate = useNavigate();
-  const { tableId } = useParams();
-  const { table, menuItems, billOrder, currentView, loading, error } = useMenu(tableId);
+  const { restaurantId, tableId } = useParams();
+  const { table, menuItems, billOrder, currentView, loading, error } = useMenu(
+    tableId,
+    restaurantId,
+  );
   const [placingOrder, setPlacingOrder] = useState(false);
   const [pendingRequestId, setPendingRequestId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");

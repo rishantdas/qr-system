@@ -31,11 +31,11 @@ export const resolvePublicBaseUrl = () => {
   return configuredBaseUrl || runtimeOrigin;
 };
 
-export const buildTableMenuUrl = (tableId) =>
-  `${resolvePublicBaseUrl()}/menu/${tableId}`;
+export const buildTableMenuUrl = (restaurantId, tableId) =>
+  `${resolvePublicBaseUrl()}/menu/${restaurantId}/${tableId}`;
 
-export const generateTableQrCode = async (tableId) =>
-  QRCode.toDataURL(buildTableMenuUrl(tableId), {
+export const generateTableQrCode = async (restaurantId, tableId) =>
+  QRCode.toDataURL(buildTableMenuUrl(restaurantId, tableId), {
     margin: 1,
     width: 512,
     color: {

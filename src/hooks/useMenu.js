@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { menuService } from "../services/menuService";
 import { useCartStore } from "../store/cartStore";
 
-export const useMenu = (tableId) => {
+export const useMenu = (tableId, restaurantId) => {
   const setTable = useCartStore((state) => state.setTable);
   const [table, setTableData] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
@@ -20,7 +20,7 @@ export const useMenu = (tableId) => {
         setError("");
         setBillOrder(null);
 
-        const tableData = await menuService.getTable(tableId);
+        const tableData = await menuService.getTable(tableId, restaurantId);
 
         if (!mounted) {
           return;
@@ -68,7 +68,7 @@ export const useMenu = (tableId) => {
     return () => {
       mounted = false;
     };
-  }, [setTable, tableId]);
+  }, [restaurantId, setTable, tableId]);
 
   return {
     table,

@@ -58,10 +58,16 @@ export const restaurantService = {
       .select("id, table_number, restaurant_id")
       .eq("restaurant_id", restaurantId)
       .eq("table_number", normalizedTableNumber)
-      .single();
+      .maybeSingle();
 
     if (error) {
       throw error;
+    }
+
+    if (!data) {
+      throw new Error(
+        `Table ${normalizedTableNumber} has not been set up for this restaurant. Add the table in Supabase, then generate its QR code.`,
+      );
     }
 
     return data;

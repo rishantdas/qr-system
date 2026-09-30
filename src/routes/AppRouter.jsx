@@ -12,6 +12,7 @@ import OrderSuccessPage from "../pages/OrderSuccessPage";
 const AppRouter = () => (
   <Routes>
     <Route path="/" element={<Navigate to="/admin/login" replace />} />
+    <Route path="/menu/:restaurantId/:tableId" element={<MenuPage />} />
     <Route path="/menu/:tableId" element={<MenuPage />} />
     <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
     <Route path="/admin/login" element={<AdminLoginPage />} />

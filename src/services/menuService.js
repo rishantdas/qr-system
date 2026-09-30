@@ -1,9 +1,9 @@
 import { assertSupabase } from "../lib/supabase";
 
 export const menuService = {
-  async getTable(tableId) {
+  async getTable(tableId, restaurantId) {
     const supabase = assertSupabase();
-    const { data, error } = await supabase
+    let query = supabase
       .from("restaurant_tables")
       .select(`
         id,
@@ -17,8 +17,13 @@ export const menuService = {
           google_review_url
         )
       `)
-      .eq("id", tableId)
-      .single();
+      .eq("id", tableId);
+
+    if (restaurantId) {
+      query = query.eq("restaurant_id", restaurantId);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
       throw error;

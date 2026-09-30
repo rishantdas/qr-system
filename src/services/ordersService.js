@@ -77,7 +77,7 @@ export const ordersService = {
     let query = supabase
       .from("orders")
       .select(ORDER_SELECT)
-      .eq("restaurant_tables.restaurant_id", restaurantId)
+      .eq("restaurant_id", restaurantId)
       .order("created_at", { ascending: false });
 
     if (status !== "all") {

@@ -93,7 +93,7 @@ const AdminDashboardPage = () => {
         restaurantId: restaurant.id,
         tableNumber,
       });
-      const qrCode = await generateTableQrCode(table.id);
+      const qrCode = await generateTableQrCode(restaurant.id, table.id);
       setQrPreview(qrCode);
     } catch (generationError) {
       toast.error(
