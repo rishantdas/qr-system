@@ -2,6 +2,7 @@ import { Search, UtensilsCrossed } from "lucide-react";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
+import { MENU_CATEGORY_OPTIONS } from "../lib/constants";
 import { Button } from "../components/Button";
 import { CategoryFilter } from "../components/CategoryFilter";
 import { CartSheet } from "../components/CartSheet";
@@ -209,8 +210,15 @@ const MenuPage = () => {
   const totalAmount = useCartStore((state) => state.totalAmount());
 
   const categories = useMemo(() => {
-    const values = new Set(menuItems.map((item) => item.category));
-    return ["All", ...values];
+    const availableCategories = new Set(menuItems.map((item) => item.category));
+    const listedCategories = MENU_CATEGORY_OPTIONS.filter((category) =>
+      availableCategories.has(category),
+    );
+    const legacyCategories = [...availableCategories]
+      .filter((category) => !MENU_CATEGORY_OPTIONS.includes(category))
+      .sort((left, right) => left.localeCompare(right));
+
+    return ["All", ...listedCategories, ...legacyCategories];
   }, [menuItems]);
 
   const filteredMenuItems = useMemo(() => {
@@ -229,6 +237,16 @@ const MenuPage = () => {
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, menuItems, searchTerm]);
+
+  const groupedMenuItems = useMemo(() => {
+    return categories
+      .filter((category) => category !== "All")
+      .map((category) => ({
+        category,
+        items: filteredMenuItems.filter((item) => item.category === category),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [categories, filteredMenuItems]);
 
   const quantityByItemId = useMemo(
     () =>
@@ -459,10 +477,10 @@ const MenuPage = () => {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0bb7e]">
-                      Category
+                      {activeCategory === "All" ? "Menu" : "Category"}
                     </p>
                     <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-[#f3f7ff]">
-                      {activeCategory}
+                      {activeCategory === "All" ? "Browse by category" : activeCategory}
                     </h2>
                   </div>
                   <div className="rounded-2xl bg-[#223148] px-4 py-3 text-center text-sm font-semibold text-[#dce5f7]">
@@ -478,15 +496,32 @@ const MenuPage = () => {
 
             <div className="mt-8">
               {filteredMenuItems.length ? (
-                <div className="grid gap-5 xl:grid-cols-2">
-                  {filteredMenuItems.map((item) => (
-                    <MenuItemCard
-                      key={item.id}
-                      item={item}
-                      quantity={quantityByItemId[item.id] ?? 0}
-                      onAdd={addItem}
-                      onDecrement={decrementItem}
-                    />
+                <div className="space-y-8">
+                  {groupedMenuItems.map(({ category, items: categoryItems }) => (
+                    <section key={category} aria-labelledby={`category-${category}`}>
+                      <div className="mb-4 flex items-center justify-between border-b border-[#9f7244]/50 pb-3">
+                        <h2
+                          id={`category-${category}`}
+                          className="text-2xl font-bold text-[#ffb76b]"
+                        >
+                          {category}
+                        </h2>
+                        <span className="text-sm text-[#d4d9e8]">
+                          {categoryItems.length} {categoryItems.length === 1 ? "item" : "items"}
+                        </span>
+                      </div>
+                      <div className="grid gap-5 xl:grid-cols-2">
+                        {categoryItems.map((item) => (
+                          <MenuItemCard
+                            key={item.id}
+                            item={item}
+                            quantity={quantityByItemId[item.id] ?? 0}
+                            onAdd={addItem}
+                            onDecrement={decrementItem}
+                          />
+                        ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
               ) : (

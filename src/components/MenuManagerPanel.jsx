@@ -1,5 +1,5 @@
 import { PencilLine, Plus, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { MENU_CATEGORY_OPTIONS } from "../lib/constants";
 import { menuService } from "../services/menuService";
@@ -13,7 +13,6 @@ const INITIAL_FORM = {
   description: "",
   price: "",
   category: "",
-  imageUrl: "",
   isAvailable: true,
 };
 
@@ -47,15 +46,7 @@ export const MenuManagerPanel = ({ restaurant }) => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  const categories = useMemo(() => {
-    const values = new Set(
-      [...MENU_CATEGORY_OPTIONS, ...menuItems
-        .map((item) => item.category?.trim())
-        .filter(Boolean)],
-    );
-
-    return Array.from(values).sort((left, right) => left.localeCompare(right));
-  }, [menuItems]);
+  const categories = MENU_CATEGORY_OPTIONS;
 
   useEffect(() => {
     if (!restaurant?.id) {
@@ -115,7 +106,6 @@ export const MenuManagerPanel = ({ restaurant }) => {
         name: form.name,
         description: form.description,
         price: form.price,
-        imageUrl: form.imageUrl,
         category: form.category,
         isAvailable: form.isAvailable,
       });
@@ -165,7 +155,7 @@ export const MenuManagerPanel = ({ restaurant }) => {
     setEditForm({
       itemId: item.id,
       name: item.name,
-      category: item.category,
+      category: MENU_CATEGORY_OPTIONS.includes(item.category) ? item.category : "",
       price: String(item.price),
     });
     setEditModalOpen(true);
@@ -314,20 +304,6 @@ export const MenuManagerPanel = ({ restaurant }) => {
               />
             </label>
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-200">
-                Image URL
-              </span>
-              <input
-                type="url"
-                name="imageUrl"
-                value={form.imageUrl}
-                onChange={handleChange}
-                placeholder="https://example.com/dish.jpg"
-                className="surface-muted w-full px-4 py-3 text-white outline-none placeholder:text-slate-500"
-              />
-            </label>
-
             <label className="surface-muted flex items-center justify-between gap-4 px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-white">Available now</p>
@@ -380,17 +356,6 @@ export const MenuManagerPanel = ({ restaurant }) => {
                     key={item.id}
                     className="surface-muted overflow-hidden"
                   >
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        className="h-40 w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-40 items-center justify-center bg-slate-950/60 text-sm text-slate-500">
-                        No image yet
-                      </div>
-                    )}
                     <div className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div>

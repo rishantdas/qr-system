@@ -8,17 +8,7 @@ export const MenuItemCard = ({
   onAdd,
   onDecrement,
 }) => (
-  <article className="surface-panel overflow-hidden">
-    <div className="aspect-[4/3] bg-slate-800">
-      <img
-        src={
-          item.image_url ||
-          "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80"
-        }
-        alt={item.name}
-        className="h-full w-full object-cover"
-      />
-    </div>
+  <article className="surface-panel">
     <div className="p-5">
       <div className="flex items-start justify-between gap-4">
         <div>

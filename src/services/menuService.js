@@ -59,8 +59,7 @@ export const menuService = {
             menu_items (
               id,
               name,
-              category,
-              image_url
+              category
             )
           )
         `,
@@ -80,7 +79,7 @@ export const menuService = {
     const { data, error } = await supabase
       .from("menu_items")
       .select(
-        "id, restaurant_id, name, description, price, image_url, category, is_available",
+        "id, restaurant_id, name, description, price, category, is_available",
       )
       .eq("restaurant_id", restaurantId)
       .order("category", { ascending: true })
@@ -98,7 +97,6 @@ export const menuService = {
     name,
     description,
     price,
-    imageUrl,
     category,
     isAvailable,
   }) {
@@ -116,12 +114,11 @@ export const menuService = {
         name: name.trim(),
         description: description.trim(),
         price: normalizedPrice,
-        image_url: imageUrl.trim() || null,
         category: category.trim(),
         is_available: isAvailable,
       })
       .select(
-        "id, restaurant_id, name, description, price, image_url, category, is_available",
+        "id, restaurant_id, name, description, price, category, is_available",
       )
       .single();
 
@@ -157,7 +154,7 @@ export const menuService = {
       })
       .eq("id", itemId)
       .select(
-        "id, restaurant_id, name, description, price, image_url, category, is_available",
+        "id, restaurant_id, name, description, price, category, is_available",
       )
       .single();
 

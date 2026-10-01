@@ -63,14 +63,6 @@ export const CartSheet = ({
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex gap-3">
-              <img
-                src={
-                  item.image_url ||
-                  "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=300&q=80"
-                }
-                alt={item.name}
-                className={`${compact ? "h-0 w-0 overflow-hidden opacity-0" : "h-14 w-14 rounded-[1.15rem] object-cover"}`}
-              />
               <div>
                 <h4
                   className={`font-semibold leading-tight text-[#f0f5ff] ${
