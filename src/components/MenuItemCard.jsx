@@ -8,20 +8,20 @@ export const MenuItemCard = ({
   onAdd,
   onDecrement,
 }) => (
-  <article className="surface-panel">
+  <article className="surface-panel min-w-0">
     <div className="p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-300">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <p className="break-words text-xs font-semibold uppercase tracking-[0.16em] text-brand-300 sm:tracking-[0.24em]">
             {item.category}
           </p>
-          <h3 className="mt-2 text-lg font-semibold text-white">{item.name}</h3>
+          <h3 className="mt-2 break-words text-lg font-semibold text-white">{item.name}</h3>
         </div>
-        <span className="rounded-full bg-white/5 px-3 py-1 text-sm font-semibold text-white">
+        <span className="shrink-0 rounded-full bg-white/5 px-3 py-1 text-sm font-semibold text-white">
           {formatCurrency(item.price)}
         </span>
       </div>
-      <p className="mt-3 text-sm text-slate-300">
+      <p className="mt-3 break-words text-sm text-slate-300">
         {item.description}
       </p>
       <div className="mt-5 flex items-center justify-between gap-3">

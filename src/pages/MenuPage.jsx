@@ -428,24 +428,24 @@ const MenuPage = () => {
 
   return (
     <div className="menu-canvas pb-32 md:pb-10">
-      <section className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-[1500px] px-3 py-4 sm:px-6 sm:py-5 lg:px-8">
         <div className="mb-5 flex items-center gap-3 text-[#f4efe8]">
           <UtensilsCrossed className="h-5 w-5 text-[#f2b46d]" />
           <div>
-            <p className="text-[2rem] font-semibold leading-none tracking-[-0.03em]">
+            <p className="text-xl font-semibold leading-tight tracking-normal sm:text-[2rem] sm:leading-none">
               Digital Menu - Table {String(table?.table_number ?? "").padStart(2, "0")}
             </p>
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
-          <div>
+        <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
+          <div className="min-w-0">
             <div className="overflow-hidden rounded-[2rem] border border-[#9f7244] bg-[#07192d] shadow-[0_25px_50px_rgba(0,0,0,0.25)]">
-              <div className="border-b border-[#314259] px-5 py-5 sm:px-6">
+              <div className="border-b border-[#314259] px-4 py-4 sm:px-6 sm:py-5">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <UtensilsCrossed className="h-5 w-5 text-[#ffb76b]" />
-                    <h1 className="text-4xl font-extrabold tracking-[-0.03em] text-[#ffb76b]">
+                    <h1 className="text-3xl font-extrabold tracking-[-0.03em] text-[#ffb76b] sm:text-4xl">
                       Table {String(table?.table_number ?? "").padStart(2, "0")}
                     </h1>
                   </div>
@@ -459,7 +459,7 @@ const MenuPage = () => {
                 </div>
               </div>
 
-              <div className="border-b border-[#314259] bg-[#223148] px-5 py-4 sm:px-6">
+              <div className="border-b border-[#314259] bg-[#223148] px-4 py-4 sm:px-6">
                 <CategoryFilter
                   categories={categories}
                   activeCategory={activeCategory}
@@ -467,17 +467,17 @@ const MenuPage = () => {
                 />
               </div>
 
-              <div className="p-5 sm:p-6">
-                <div className="flex items-center justify-between gap-4">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#f0bb7e]">
                       {activeCategory === "All" ? "Menu" : "Category"}
                     </p>
-                    <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-[#f3f7ff]">
+                    <h2 className="mt-2 break-words text-2xl font-semibold tracking-[-0.03em] text-[#f3f7ff] sm:text-3xl">
                       {activeCategory === "All" ? "Browse by category" : activeCategory}
                     </h2>
                   </div>
-                  <div className="rounded-2xl bg-[#223148] px-4 py-3 text-center text-sm font-semibold text-[#dce5f7]">
+                  <div className="max-w-full rounded-2xl bg-[#223148] px-3 py-2 text-xs font-semibold text-[#dce5f7] sm:px-4 sm:py-3 sm:text-sm">
                     {filteredMenuItems.length} dishes available
                   </div>
                 </div>
@@ -496,7 +496,7 @@ const MenuPage = () => {
                       <div className="mb-4 flex items-center justify-between border-b border-[#9f7244]/50 pb-3">
                         <h2
                           id={`category-${category}`}
-                          className="text-2xl font-bold text-[#ffb76b]"
+                          className="break-words text-xl font-bold text-[#ffb76b] sm:text-2xl"
                         >
                           {category}
                         </h2>
