@@ -17,21 +17,3 @@ export const ORDER_STATUS_META = {
 
 export const DEFAULT_ORDER_FILTER = "all";
 
-export const MENU_CATEGORY_OPTIONS = [
-  "Fresh Juices",
-  "Shakes",
-  "Mocktails",
-  "Tea and Coffee",
-  "Burgers",
-  "Fries and Sides",
-  "Noodles",
-  "Momo",
-  "Sandwiches",
-  "The Oryza",
-  "Rolls",
-  "Shillong",
-  "Pizza",
-  "Combo Meal",
-  "Soft Drinks",
-  "Lassi",
-];

@@ -1,7 +1,6 @@
-import { PencilLine, Plus, Sparkles } from "lucide-react";
+import { PencilLine, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { MENU_CATEGORY_OPTIONS } from "../lib/constants";
 import { menuService } from "../services/menuService";
 import { formatCurrency } from "../utils/currency";
 import { Button } from "./Button";
@@ -41,12 +40,14 @@ export const MenuManagerPanel = ({ restaurant }) => {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [updatingItemId, setUpdatingItemId] = useState("");
+  const [deletingItemId, setDeletingItemId] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [categoryName, setCategoryName] = useState("");
+  const [categorySubmitting, setCategorySubmitting] = useState(false);
   const [form, setForm] = useState(INITIAL_FORM);
   const [editForm, setEditForm] = useState(INITIAL_EDIT_FORM);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
-
-  const categories = MENU_CATEGORY_OPTIONS;
 
   useEffect(() => {
     if (!restaurant?.id) {
@@ -59,13 +60,17 @@ export const MenuManagerPanel = ({ restaurant }) => {
       try {
         setLoading(true);
         setError("");
-        const data = await menuService.getMenuByRestaurant(restaurant.id);
+        const [data, restaurantCategories] = await Promise.all([
+          menuService.getMenuByRestaurant(restaurant.id),
+          menuService.getCategoriesByRestaurant(restaurant.id),
+        ]);
 
         if (!mounted) {
           return;
         }
 
         setMenuItems(data);
+        setCategories(restaurantCategories);
       } catch (loadError) {
         if (mounted) {
           setError(loadError.message || "Unable to load menu items.");
@@ -90,6 +95,38 @@ export const MenuManagerPanel = ({ restaurant }) => {
       ...current,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const handleCategorySubmit = async (event) => {
+    event.preventDefault();
+
+    if (!restaurant?.id) {
+      return;
+    }
+
+    const normalizedName = categoryName.trim();
+
+    if (categories.some((category) => category.toLowerCase() === normalizedName.toLowerCase())) {
+      toast.error("This category already exists for this restaurant.");
+      return;
+    }
+
+    try {
+      setCategorySubmitting(true);
+      const createdCategory = await menuService.createMenuCategory({
+        restaurantId: restaurant.id,
+        name: normalizedName,
+      });
+      setCategories((current) => [...current, createdCategory].sort((left, right) => (
+        left.localeCompare(right)
+      )));
+      setCategoryName("");
+      toast.success("Category added to this restaurant.");
+    } catch (categoryError) {
+      toast.error(categoryError.message || "Unable to add the category.");
+    } finally {
+      setCategorySubmitting(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -151,11 +188,35 @@ export const MenuManagerPanel = ({ restaurant }) => {
     }
   };
 
+  const handleDeleteItem = async (item) => {
+    const confirmed = window.confirm(
+      `Delete "${item.name}" from ${restaurant.name}'s menu? Items in past orders cannot be deleted.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingItemId(item.id);
+      await menuService.deleteMenuItem({
+        itemId: item.id,
+        restaurantId: restaurant.id,
+      });
+      setMenuItems((current) => current.filter((entry) => entry.id !== item.id));
+      toast.success("Menu item deleted.");
+    } catch (deleteError) {
+      toast.error(deleteError.message || "Unable to delete the menu item.");
+    } finally {
+      setDeletingItemId("");
+    }
+  };
+
   const openEditModal = (item) => {
     setEditForm({
       itemId: item.id,
       name: item.name,
-      category: MENU_CATEGORY_OPTIONS.includes(item.category) ? item.category : "",
+      category: item.category,
       price: String(item.price),
     });
     setEditModalOpen(true);
@@ -230,7 +291,28 @@ export const MenuManagerPanel = ({ restaurant }) => {
               <Sparkles className="h-5 w-5" />
             </div>
           </div>
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 flex items-end gap-3" onSubmit={handleCategorySubmit}>
+            <label className="block min-w-0 flex-1">
+              <span className="mb-2 block text-sm font-medium text-slate-200">
+                Add a category for this restaurant
+              </span>
+              <input
+                type="text"
+                value={categoryName}
+                onChange={(event) => setCategoryName(event.target.value)}
+                maxLength={50}
+                placeholder="Seasonal Specials"
+                className="surface-muted w-full px-4 py-3 text-white outline-none placeholder:text-slate-500"
+                required
+              />
+            </label>
+            <Button type="submit" disabled={categorySubmitting} className="gap-2">
+              <Plus className="h-4 w-4" />
+              {categorySubmitting ? "Adding..." : "Add category"}
+            </Button>
+          </form>
+
+          <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-slate-200">
                 Item name
@@ -387,6 +469,7 @@ export const MenuManagerPanel = ({ restaurant }) => {
                           <Button
                             variant="ghost"
                             className="gap-2 px-3 py-2 text-xs"
+                            disabled={deletingItemId === item.id}
                             onClick={() => openEditModal(item)}
                           >
                             <PencilLine className="h-3.5 w-3.5" />
@@ -395,7 +478,9 @@ export const MenuManagerPanel = ({ restaurant }) => {
                           <Button
                             variant={item.is_available ? "secondary" : "primary"}
                             className="px-3 py-2 text-xs"
-                            disabled={updatingItemId === item.id}
+                            disabled={
+                              updatingItemId === item.id || deletingItemId === item.id
+                            }
                             onClick={() => handleAvailabilityToggle(item)}
                           >
                             {updatingItemId === item.id
@@ -403,6 +488,15 @@ export const MenuManagerPanel = ({ restaurant }) => {
                               : item.is_available
                                 ? "Mark unavailable"
                                 : "Mark available"}
+                          </Button>
+                          <Button
+                            variant="danger"
+                            className="gap-2 px-3 py-2 text-xs"
+                            disabled={Boolean(deletingItemId) || updatingItemId === item.id}
+                            onClick={() => handleDeleteItem(item)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {deletingItemId === item.id ? "Deleting..." : "Delete"}
                           </Button>
                         </div>
                       </div>

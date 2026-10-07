@@ -2,7 +2,6 @@ import { Search, UtensilsCrossed } from "lucide-react";
 import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useNavigate, useParams } from "react-router-dom";
-import { MENU_CATEGORY_OPTIONS } from "../lib/constants";
 import { Button } from "../components/Button";
 import { CategoryFilter } from "../components/CategoryFilter";
 import { CartSheet } from "../components/CartSheet";
@@ -210,15 +209,10 @@ const MenuPage = () => {
   const totalAmount = useCartStore((state) => state.totalAmount());
 
   const categories = useMemo(() => {
-    const availableCategories = new Set(menuItems.map((item) => item.category));
-    const listedCategories = MENU_CATEGORY_OPTIONS.filter((category) =>
-      availableCategories.has(category),
-    );
-    const legacyCategories = [...availableCategories]
-      .filter((category) => !MENU_CATEGORY_OPTIONS.includes(category))
+    const restaurantCategories = [...new Set(menuItems.map((item) => item.category))]
       .sort((left, right) => left.localeCompare(right));
 
-    return ["All", ...listedCategories, ...legacyCategories];
+    return ["All", ...restaurantCategories];
   }, [menuItems]);
 
   const filteredMenuItems = useMemo(() => {

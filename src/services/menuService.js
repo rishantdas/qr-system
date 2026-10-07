@@ -92,6 +92,49 @@ export const menuService = {
     return data ?? [];
   },
 
+  async getCategoriesByRestaurant(restaurantId) {
+    const supabase = assertSupabase();
+    const { data, error } = await supabase
+      .from("restaurant_menu_categories")
+      .select("name")
+      .eq("restaurant_id", restaurantId)
+      .order("name", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map((category) => category.name);
+  },
+
+  async createMenuCategory({ restaurantId, name }) {
+    const supabase = assertSupabase();
+    const normalizedName = name.trim();
+
+    if (!normalizedName || normalizedName.length > 50) {
+      throw new Error("Enter a category name of 1 to 50 characters.");
+    }
+
+    const { data, error } = await supabase
+      .from("restaurant_menu_categories")
+      .insert({
+        restaurant_id: restaurantId,
+        name: normalizedName,
+      })
+      .select("name")
+      .single();
+
+    if (error?.code === "23505") {
+      throw new Error("This category already exists for this restaurant.");
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    return data.name;
+  },
+
   async createMenuItem({
     restaurantId,
     name,
@@ -174,6 +217,30 @@ export const menuService = {
 
     if (error) {
       throw error;
+    }
+  },
+
+  async deleteMenuItem({ itemId, restaurantId }) {
+    const supabase = assertSupabase();
+    const { data, error } = await supabase
+      .from("menu_items")
+      .delete()
+      .eq("id", itemId)
+      .eq("restaurant_id", restaurantId)
+      .select("id");
+
+    if (error?.code === "23503") {
+      throw new Error(
+        "This item appears in past orders and can't be deleted. Mark it unavailable to remove it from the menu.",
+      );
+    }
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.length) {
+      throw new Error("Menu item not found for this restaurant.");
     }
   },
 };
